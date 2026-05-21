@@ -23,13 +23,14 @@ contract IntentRegistry {
     error IntentRegistry__AlreadyExecuted();
     error IntentRegistry__IntentExpired();
     error IntentRegistry__PriceConditionNotMet();
+    error IntentRegistry__TransferFailed();
 
     uint256 public nextIntentId;
 
-    IRouter public immutable router;
+    IRouter public immutable ROUTER;
 
     constructor(address _router) {
-        router = IRouter(_router);
+        ROUTER = IRouter(_router);
     }
 
     struct TradeIntent {
@@ -124,17 +125,9 @@ contract IntentRegistry {
             revert IntentRegistry__AlreadyRevealed();
         }
 
+        // forge-lint: disable-next-line(asm-keccak256)
         bytes32 computedHash = keccak256(
-            abi.encode(
-                msg.sender,
-                tokenIn,
-                tokenOut,
-                amountIn,
-                targetPrice,
-                greaterThan,
-                intent.expiry,
-                secret
-            )
+            abi.encodePacked(msg.sender, tokenIn, tokenOut, amountIn, targetPrice, greaterThan, intent.expiry, secret)
         ); // Recompute the hash using the provided details and the original expiry from storage
 
         if (computedHash != intent.commitmentHash) {
@@ -161,11 +154,11 @@ contract IntentRegistry {
 
         if (msg.sender != intent.user) revert IntentRegistry__NotIntentOwner();
 
-        IERC20(intent.tokenIn).transferFrom(
-            msg.sender,
-            address(this),
-            intent.amountIn
-        );
+        bool res = IERC20(intent.tokenIn).transferFrom(msg.sender, address(this), intent.amountIn);
+
+        if (!res) {
+            revert IntentRegistry__TransferFailed();
+        }
 
         emit FundsDeposited(id, intent.amountIn);
     }
@@ -196,28 +189,20 @@ contract IntentRegistry {
             revert IntentRegistry__IntentExpired();
         }
 
-        bool conditionMet = intent.greaterThan
-            ? currentPrice >= intent.targetPrice
-            : currentPrice <= intent.targetPrice;
+        bool conditionMet = intent.greaterThan ? currentPrice >= intent.targetPrice : currentPrice <= intent.targetPrice;
 
         if (!conditionMet) {
             revert IntentRegistry__PriceConditionNotMet();
         }
 
-        IERC20(intent.tokenIn).approve(address(router), intent.amountIn);
+        IERC20(intent.tokenIn).approve(address(ROUTER), intent.amountIn);
 
         address[] memory path = new address[](2);
 
         path[0] = intent.tokenIn;
         path[1] = intent.tokenOut;
 
-        router.swapExactTokensForTokens(
-            intent.amountIn,
-            0,
-            path,
-            intent.user,
-            block.timestamp + 300
-        );
+        ROUTER.swapExactTokensForTokens(intent.amountIn, 0, path, intent.user, block.timestamp + 300);
 
         intent.executed = true;
 
@@ -231,9 +216,7 @@ contract IntentRegistry {
      * @custom:signature getIntent(uint256)
      * @custom:selector 0x906e277b
      */
-    function getIntent(
-        uint256 intentId
-    ) external view returns (TradeIntent memory) {
+    function getIntent(uint256 intentId) external view returns (TradeIntent memory) {
         return intents[intentId];
     }
 }
