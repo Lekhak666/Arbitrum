@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
+import {IRouter} from "./interfaces/IRouter.sol";
+import {IERC20} from "./interfaces/IERC20.sol";
+
 /**
  * @title IntentRegistry
  *
@@ -23,6 +26,12 @@ contract IntentRegistry {
 
     uint256 public nextIntentId;
 
+    IRouter public immutable router;
+
+    constructor(address _router) {
+        router = IRouter(_router);
+    }
+
     struct TradeIntent {
         address user; // Owner of the intent
         address tokenIn; // Token the user wants to sell
@@ -41,6 +50,8 @@ contract IntentRegistry {
     event IntentSubmitted(uint256 indexed intentId, address indexed user); // Emitted when a new intent is submitted
 
     event IntentRevealed(uint256 indexed intentId); // Emitted when an intent is revealed
+
+    event FundsDeposited(uint256 indexed id, uint256 amount);
 
     event IntentExecuted(uint256 indexed intentId, uint256 executionPrice); // Emitted when an intent is executed
 
@@ -114,7 +125,16 @@ contract IntentRegistry {
         }
 
         bytes32 computedHash = keccak256(
-            abi.encode(msg.sender, tokenIn, tokenOut, amountIn, targetPrice, greaterThan, intent.expiry, secret)
+            abi.encode(
+                msg.sender,
+                tokenIn,
+                tokenOut,
+                amountIn,
+                targetPrice,
+                greaterThan,
+                intent.expiry,
+                secret
+            )
         ); // Recompute the hash using the provided details and the original expiry from storage
 
         if (computedHash != intent.commitmentHash) {
@@ -130,6 +150,24 @@ contract IntentRegistry {
         intent.revealed = true;
 
         emit IntentRevealed(intentId); // Emit event after updating the intent to reflect the revealed details.
+    }
+
+    // ------------------------
+    // Deposit
+    // ------------------------
+
+    function depositIntentFunds(uint256 id) external {
+        TradeIntent storage intent = intents[id];
+
+        if (msg.sender != intent.user) revert IntentRegistry__NotIntentOwner();
+
+        IERC20(intent.tokenIn).transferFrom(
+            msg.sender,
+            address(this),
+            intent.amountIn
+        );
+
+        emit FundsDeposited(id, intent.amountIn);
     }
 
     // --------------------------
@@ -158,14 +196,28 @@ contract IntentRegistry {
             revert IntentRegistry__IntentExpired();
         }
 
-        bool conditionMet = intent.greaterThan ? currentPrice >= intent.targetPrice : currentPrice <= intent.targetPrice;
+        bool conditionMet = intent.greaterThan
+            ? currentPrice >= intent.targetPrice
+            : currentPrice <= intent.targetPrice;
 
         if (!conditionMet) {
             revert IntentRegistry__PriceConditionNotMet();
         }
 
-        // Real version:
-        // route swap through DEX
+        IERC20(intent.tokenIn).approve(address(router), intent.amountIn);
+
+        address[] memory path = new address[](2);
+
+        path[0] = intent.tokenIn;
+        path[1] = intent.tokenOut;
+
+        router.swapExactTokensForTokens(
+            intent.amountIn,
+            0,
+            path,
+            intent.user,
+            block.timestamp + 300
+        );
 
         intent.executed = true;
 
@@ -179,7 +231,9 @@ contract IntentRegistry {
      * @custom:signature getIntent(uint256)
      * @custom:selector 0x906e277b
      */
-    function getIntent(uint256 intentId) external view returns (TradeIntent memory) {
+    function getIntent(
+        uint256 intentId
+    ) external view returns (TradeIntent memory) {
         return intents[intentId];
     }
 }
