@@ -27,11 +27,19 @@ contract IntentRegistryTest is Test {
     }
 
     function _hash(uint256 expiry) internal view returns (bytes32) {
-        return keccak256(
-            abi.encodePacked(
-                user, address(tokenA), address(tokenB), uint256(100 ether), uint256(1000), true, expiry, secret
-            )
-        );
+        return
+            keccak256(
+                abi.encodePacked(
+                    user,
+                    address(tokenA),
+                    address(tokenB),
+                    uint256(100 ether),
+                    uint256(1000),
+                    true,
+                    expiry,
+                    secret
+                )
+            );
     }
 
     /// INTENT MUST SUBMIT CLEANLY
@@ -62,7 +70,15 @@ contract IntentRegistryTest is Test {
 
         vm.expectRevert(IntentRegistry.IntentRegistry__NotIntentOwner.selector);
 
-        registry.revealIntent(0, address(tokenA), address(tokenB), 100 ether, 1000, true, secret);
+        registry.revealIntent(
+            0,
+            address(tokenA),
+            address(tokenB),
+            100 ether,
+            1000,
+            true,
+            secret
+        );
     }
 
     /// HASH MISMATCH MUST REVERT
@@ -74,9 +90,19 @@ contract IntentRegistryTest is Test {
 
         vm.prank(user);
 
-        vm.expectRevert(IntentRegistry.IntentRegistry__RevealHashMismatch.selector);
+        vm.expectRevert(
+            IntentRegistry.IntentRegistry__RevealHashMismatch.selector
+        );
 
-        registry.revealIntent(0, address(tokenA), address(tokenB), 999, 1000, true, secret);
+        registry.revealIntent(
+            0,
+            address(tokenA),
+            address(tokenB),
+            999,
+            1000,
+            true,
+            secret
+        );
     }
 
     /// EXECUTION MUST COMPLETE WHEN CONDITION IS TRUE
@@ -87,7 +113,15 @@ contract IntentRegistryTest is Test {
 
         registry.submitIntent(_hash(expiry), expiry);
 
-        registry.revealIntent(0, address(tokenA), address(tokenB), 100 ether, 1000, true, secret);
+        registry.revealIntent(
+            0,
+            address(tokenA),
+            address(tokenB),
+            100 ether,
+            1000,
+            true,
+            secret
+        );
 
         tokenA.approve(address(registry), 100 ether);
 
@@ -110,15 +144,218 @@ contract IntentRegistryTest is Test {
 
         registry.submitIntent(_hash(expiry), expiry);
 
-        registry.revealIntent(0, address(tokenA), address(tokenB), 100 ether, 1000, true, secret);
+        registry.revealIntent(
+            0,
+            address(tokenA),
+            address(tokenB),
+            100 ether,
+            1000,
+            true,
+            secret
+        );
 
         tokenA.approve(address(registry), 100 ether);
         registry.depositIntentFunds(0);
 
         vm.stopPrank();
 
-        vm.expectRevert(IntentRegistry.IntentRegistry__PriceConditionNotMet.selector);
+        vm.expectRevert(
+            IntentRegistry.IntentRegistry__PriceConditionNotMet.selector
+        );
 
         registry.executeIntent(0, 999);
+    }
+
+    /// REVEALING TWICE MUST FAIL HARD
+    function testRevealTwiceReverts() public {
+        uint256 expiry = block.timestamp + 1 days;
+
+        vm.startPrank(user);
+
+        registry.submitIntent(_hash(expiry), expiry);
+
+        registry.revealIntent(
+            0,
+            address(tokenA),
+            address(tokenB),
+            100 ether,
+            1000,
+            true,
+            secret
+        );
+
+        vm.expectRevert(
+            IntentRegistry.IntentRegistry__AlreadyRevealed.selector
+        );
+
+        registry.revealIntent(
+            0,
+            address(tokenA),
+            address(tokenB),
+            100 ether,
+            1000,
+            true,
+            secret
+        );
+
+        vm.stopPrank();
+    }
+
+    /// EXECUTION BEFORE REVEAL IS ILLEGAL
+    function testExecuteWithoutRevealReverts() public {
+        uint256 expiry = block.timestamp + 1 days;
+
+        vm.prank(user);
+        registry.submitIntent(_hash(expiry), expiry);
+
+        vm.expectRevert(
+            IntentRegistry.IntentRegistry__IntentNotRevealed.selector
+        );
+
+        registry.executeIntent(0, 2000);
+    }
+
+    /// EXPIRED INTENTS MUST NEVER EXECUTE
+    function testExpiredIntentReverts() public {
+        uint256 expiry = block.timestamp + 1 days;
+
+        vm.startPrank(user);
+
+        registry.submitIntent(_hash(expiry), expiry);
+
+        registry.revealIntent(
+            0,
+            address(tokenA),
+            address(tokenB),
+            100 ether,
+            1000,
+            true,
+            secret
+        );
+
+        tokenA.approve(address(registry), 100 ether);
+        registry.depositIntentFunds(0);
+
+        vm.stopPrank();
+
+        vm.warp(expiry + 1);
+
+        vm.expectRevert(IntentRegistry.IntentRegistry__IntentExpired.selector);
+
+        registry.executeIntent(0, 2000);
+    }
+
+    /// DOUBLE EXECUTION MUST FAIL
+    function testExecuteTwiceReverts() public {
+        uint256 expiry = block.timestamp + 1 days;
+
+        vm.startPrank(user);
+
+        registry.submitIntent(_hash(expiry), expiry);
+
+        registry.revealIntent(
+            0,
+            address(tokenA),
+            address(tokenB),
+            100 ether,
+            1000,
+            true,
+            secret
+        );
+
+        tokenA.approve(address(registry), 100 ether);
+        registry.depositIntentFunds(0);
+
+        vm.stopPrank();
+
+        registry.executeIntent(0, 1001);
+
+        vm.expectRevert(
+            IntentRegistry.IntentRegistry__AlreadyExecuted.selector
+        );
+
+        registry.executeIntent(0, 1001);
+    }
+
+    /// LOWER-THAN STRATEGY MUST EXECUTE
+    function testExecuteWhenPriceBelowTarget() public {
+        uint256 expiry = block.timestamp + 1 days;
+
+        bytes32 h = keccak256(
+            abi.encodePacked(
+                user,
+                address(tokenA),
+                address(tokenB),
+                uint256(100 ether),
+                uint256(1000),
+                false,
+                expiry,
+                secret
+            )
+        );
+
+        vm.startPrank(user);
+
+        registry.submitIntent(h, expiry);
+
+        registry.revealIntent(
+            0,
+            address(tokenA),
+            address(tokenB),
+            100 ether,
+            1000,
+            false,
+            secret
+        );
+
+        tokenA.approve(address(registry), 100 ether);
+        registry.depositIntentFunds(0);
+
+        vm.stopPrank();
+
+        registry.executeIntent(0, 999);
+
+        IntentRegistry.TradeIntent memory intent = registry.getIntent(0);
+
+        assertTrue(intent.executed);
+    }
+
+    /// ONLY OWNER MAY DEPOSIT
+    function testDepositByNonOwnerReverts() public {
+        uint256 expiry = block.timestamp + 1 days;
+
+        vm.prank(user);
+        registry.submitIntent(_hash(expiry), expiry);
+
+        vm.expectRevert(IntentRegistry.IntentRegistry__NotIntentOwner.selector);
+
+        registry.depositIntentFunds(0);
+    }
+
+    /// FAILED TOKEN TRANSFER MUST REVERT
+    function testDepositTransferFail() public {
+        uint256 expiry = block.timestamp + 1 days;
+
+        vm.startPrank(user);
+
+        registry.submitIntent(_hash(expiry), expiry);
+
+        registry.revealIntent(
+            0,
+            address(tokenA),
+            address(tokenB),
+            100 ether,
+            1000,
+            true,
+            secret
+        );
+
+        tokenA.setFail(true);
+
+        vm.expectRevert(IntentRegistry.IntentRegistry__TransferFailed.selector);
+
+        registry.depositIntentFunds(0);
+
+        vm.stopPrank();
     }
 }

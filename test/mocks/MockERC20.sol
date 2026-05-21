@@ -8,6 +8,8 @@ contract MockERC20 {
     mapping(address => uint256) public balanceOf;
     mapping(address => mapping(address => uint256)) public allowance;
 
+    bool public shouldFail;
+
     constructor(string memory n, string memory s) {
         name = n;
         symbol = s;
@@ -28,10 +30,20 @@ contract MockERC20 {
         return true;
     }
 
-    function transferFrom(address from, address to, uint256 amount) external returns (bool) {
+    function transferFrom(
+        address from,
+        address to,
+        uint256 amount
+    ) external returns (bool) {
+        if (shouldFail) return false;
+
         allowance[from][msg.sender] -= amount;
         balanceOf[from] -= amount;
         balanceOf[to] += amount;
         return true;
+    }
+
+    function setFail(bool v) external {
+        shouldFail = v;
     }
 }
