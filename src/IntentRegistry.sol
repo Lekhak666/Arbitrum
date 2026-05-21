@@ -114,16 +114,7 @@ contract IntentRegistry {
         }
 
         bytes32 computedHash = keccak256(
-            abi.encode(
-                msg.sender,
-                tokenIn,
-                tokenOut,
-                amountIn,
-                targetPrice,
-                greaterThan,
-                intent.expiry,
-                secret
-            )
+            abi.encode(msg.sender, tokenIn, tokenOut, amountIn, targetPrice, greaterThan, intent.expiry, secret)
         ); // Recompute the hash using the provided details and the original expiry from storage
 
         if (computedHash != intent.commitmentHash) {
@@ -167,9 +158,7 @@ contract IntentRegistry {
             revert IntentRegistry__IntentExpired();
         }
 
-        bool conditionMet = intent.greaterThan
-            ? currentPrice >= intent.targetPrice
-            : currentPrice <= intent.targetPrice;
+        bool conditionMet = intent.greaterThan ? currentPrice >= intent.targetPrice : currentPrice <= intent.targetPrice;
 
         if (!conditionMet) {
             revert IntentRegistry__PriceConditionNotMet();
@@ -190,9 +179,7 @@ contract IntentRegistry {
      * @custom:signature getIntent(uint256)
      * @custom:selector 0x906e277b
      */
-    function getIntent(
-        uint256 intentId
-    ) external view returns (TradeIntent memory) {
+    function getIntent(uint256 intentId) external view returns (TradeIntent memory) {
         return intents[intentId];
     }
 }
