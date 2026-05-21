@@ -27,19 +27,11 @@ contract IntentRegistryTest is Test {
     }
 
     function _hash(uint256 expiry) internal view returns (bytes32) {
-        return
-            keccak256(
-                abi.encodePacked(
-                    user,
-                    address(tokenA),
-                    address(tokenB),
-                    uint256(100 ether),
-                    uint256(1000),
-                    true,
-                    expiry,
-                    secret
-                )
-            );
+        return keccak256(
+            abi.encodePacked(
+                user, address(tokenA), address(tokenB), uint256(100 ether), uint256(1000), true, expiry, secret
+            )
+        );
     }
 
     /// INTENT MUST SUBMIT CLEANLY
@@ -70,15 +62,7 @@ contract IntentRegistryTest is Test {
 
         vm.expectRevert(IntentRegistry.IntentRegistry__NotIntentOwner.selector);
 
-        registry.revealIntent(
-            0,
-            address(tokenA),
-            address(tokenB),
-            100 ether,
-            1000,
-            true,
-            secret
-        );
+        registry.revealIntent(0, address(tokenA), address(tokenB), 100 ether, 1000, true, secret);
     }
 
     /// HASH MISMATCH MUST REVERT
@@ -90,19 +74,9 @@ contract IntentRegistryTest is Test {
 
         vm.prank(user);
 
-        vm.expectRevert(
-            IntentRegistry.IntentRegistry__RevealHashMismatch.selector
-        );
+        vm.expectRevert(IntentRegistry.IntentRegistry__RevealHashMismatch.selector);
 
-        registry.revealIntent(
-            0,
-            address(tokenA),
-            address(tokenB),
-            999,
-            1000,
-            true,
-            secret
-        );
+        registry.revealIntent(0, address(tokenA), address(tokenB), 999, 1000, true, secret);
     }
 
     /// EXECUTION MUST COMPLETE WHEN CONDITION IS TRUE
@@ -113,15 +87,7 @@ contract IntentRegistryTest is Test {
 
         registry.submitIntent(_hash(expiry), expiry);
 
-        registry.revealIntent(
-            0,
-            address(tokenA),
-            address(tokenB),
-            100 ether,
-            1000,
-            true,
-            secret
-        );
+        registry.revealIntent(0, address(tokenA), address(tokenB), 100 ether, 1000, true, secret);
 
         tokenA.approve(address(registry), 100 ether);
 
@@ -144,24 +110,14 @@ contract IntentRegistryTest is Test {
 
         registry.submitIntent(_hash(expiry), expiry);
 
-        registry.revealIntent(
-            0,
-            address(tokenA),
-            address(tokenB),
-            100 ether,
-            1000,
-            true,
-            secret
-        );
+        registry.revealIntent(0, address(tokenA), address(tokenB), 100 ether, 1000, true, secret);
 
         tokenA.approve(address(registry), 100 ether);
         registry.depositIntentFunds(0);
 
         vm.stopPrank();
 
-        vm.expectRevert(
-            IntentRegistry.IntentRegistry__PriceConditionNotMet.selector
-        );
+        vm.expectRevert(IntentRegistry.IntentRegistry__PriceConditionNotMet.selector);
 
         registry.executeIntent(0, 999);
     }
@@ -174,29 +130,11 @@ contract IntentRegistryTest is Test {
 
         registry.submitIntent(_hash(expiry), expiry);
 
-        registry.revealIntent(
-            0,
-            address(tokenA),
-            address(tokenB),
-            100 ether,
-            1000,
-            true,
-            secret
-        );
+        registry.revealIntent(0, address(tokenA), address(tokenB), 100 ether, 1000, true, secret);
 
-        vm.expectRevert(
-            IntentRegistry.IntentRegistry__AlreadyRevealed.selector
-        );
+        vm.expectRevert(IntentRegistry.IntentRegistry__AlreadyRevealed.selector);
 
-        registry.revealIntent(
-            0,
-            address(tokenA),
-            address(tokenB),
-            100 ether,
-            1000,
-            true,
-            secret
-        );
+        registry.revealIntent(0, address(tokenA), address(tokenB), 100 ether, 1000, true, secret);
 
         vm.stopPrank();
     }
@@ -208,9 +146,7 @@ contract IntentRegistryTest is Test {
         vm.prank(user);
         registry.submitIntent(_hash(expiry), expiry);
 
-        vm.expectRevert(
-            IntentRegistry.IntentRegistry__IntentNotRevealed.selector
-        );
+        vm.expectRevert(IntentRegistry.IntentRegistry__IntentNotRevealed.selector);
 
         registry.executeIntent(0, 2000);
     }
@@ -223,15 +159,7 @@ contract IntentRegistryTest is Test {
 
         registry.submitIntent(_hash(expiry), expiry);
 
-        registry.revealIntent(
-            0,
-            address(tokenA),
-            address(tokenB),
-            100 ether,
-            1000,
-            true,
-            secret
-        );
+        registry.revealIntent(0, address(tokenA), address(tokenB), 100 ether, 1000, true, secret);
 
         tokenA.approve(address(registry), 100 ether);
         registry.depositIntentFunds(0);
@@ -253,15 +181,7 @@ contract IntentRegistryTest is Test {
 
         registry.submitIntent(_hash(expiry), expiry);
 
-        registry.revealIntent(
-            0,
-            address(tokenA),
-            address(tokenB),
-            100 ether,
-            1000,
-            true,
-            secret
-        );
+        registry.revealIntent(0, address(tokenA), address(tokenB), 100 ether, 1000, true, secret);
 
         tokenA.approve(address(registry), 100 ether);
         registry.depositIntentFunds(0);
@@ -270,9 +190,7 @@ contract IntentRegistryTest is Test {
 
         registry.executeIntent(0, 1001);
 
-        vm.expectRevert(
-            IntentRegistry.IntentRegistry__AlreadyExecuted.selector
-        );
+        vm.expectRevert(IntentRegistry.IntentRegistry__AlreadyExecuted.selector);
 
         registry.executeIntent(0, 1001);
     }
@@ -283,14 +201,7 @@ contract IntentRegistryTest is Test {
 
         bytes32 h = keccak256(
             abi.encodePacked(
-                user,
-                address(tokenA),
-                address(tokenB),
-                uint256(100 ether),
-                uint256(1000),
-                false,
-                expiry,
-                secret
+                user, address(tokenA), address(tokenB), uint256(100 ether), uint256(1000), false, expiry, secret
             )
         );
 
@@ -298,15 +209,7 @@ contract IntentRegistryTest is Test {
 
         registry.submitIntent(h, expiry);
 
-        registry.revealIntent(
-            0,
-            address(tokenA),
-            address(tokenB),
-            100 ether,
-            1000,
-            false,
-            secret
-        );
+        registry.revealIntent(0, address(tokenA), address(tokenB), 100 ether, 1000, false, secret);
 
         tokenA.approve(address(registry), 100 ether);
         registry.depositIntentFunds(0);
@@ -340,15 +243,7 @@ contract IntentRegistryTest is Test {
 
         registry.submitIntent(_hash(expiry), expiry);
 
-        registry.revealIntent(
-            0,
-            address(tokenA),
-            address(tokenB),
-            100 ether,
-            1000,
-            true,
-            secret
-        );
+        registry.revealIntent(0, address(tokenA), address(tokenB), 100 ether, 1000, true, secret);
 
         tokenA.setFail(true);
 

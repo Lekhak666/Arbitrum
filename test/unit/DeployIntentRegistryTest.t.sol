@@ -9,8 +9,7 @@ import {IntentRegistry} from "../../src/IntentRegistry.sol";
 contract DeployIntentRegistryTest is Test {
     DeployIntentRegistry internal deployer;
 
-    address internal constant ROUTER =
-        address(0x1234567890123456789012345678901234567890);
+    address internal constant ROUTER = address(0x1234567890123456789012345678901234567890);
 
     function setUp() public {
         deployer = new DeployIntentRegistry();

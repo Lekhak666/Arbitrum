@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import "forge-std/Test.sol";
-import "../../src/IntentRegistry.sol";
-import "../mocks/MockRouter.sol";
+import {Test} from "forge-std/Test.sol";
+import {IntentRegistry} from "../../src/IntentRegistry.sol";
+import {MockRouter} from "../mocks/MockRouter.sol";
 
 contract IntentRegistryFuzz is Test {
-    IntentRegistry registry;
+    IntentRegistry internal registry;
 
     function setUp() public {
         registry = new IntentRegistry(address(new MockRouter()));
