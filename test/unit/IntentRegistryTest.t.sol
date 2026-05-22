@@ -253,4 +253,220 @@ contract IntentRegistryTest is Test {
 
         vm.stopPrank();
     }
+
+    // --------------------------
+    // State Integrity
+    // --------------------------
+
+    /// SUBMITTED INTENT FIELDS MUST BE STORED CORRECTLY
+    function testSubmitIntentStoredCorrectly() public {
+        uint256 expiry = block.timestamp + 1 days;
+        bytes32 h = _hash(expiry);
+
+        vm.prank(user);
+        registry.submitIntent(h, expiry);
+
+        IntentRegistry.TradeIntent memory intent = registry.getIntent(0);
+
+        assertEq(intent.user, user);
+        assertEq(intent.commitmentHash, h);
+        assertEq(intent.expiry, expiry);
+        assertEq(intent.tokenIn, address(0));
+        assertEq(intent.tokenOut, address(0));
+        assertEq(intent.amountIn, 0);
+        assertFalse(intent.revealed);
+        assertFalse(intent.executed);
+    }
+
+    /// REVEALED INTENT FIELDS MUST MATCH WHAT WAS PROVIDED
+    function testRevealIntentPopulatesFields() public {
+        uint256 expiry = block.timestamp + 1 days;
+
+        vm.startPrank(user);
+        registry.submitIntent(_hash(expiry), expiry);
+        registry.revealIntent(0, address(tokenA), address(tokenB), 100 ether, 1000, true, secret);
+        vm.stopPrank();
+
+        IntentRegistry.TradeIntent memory intent = registry.getIntent(0);
+
+        assertEq(intent.tokenIn, address(tokenA));
+        assertEq(intent.tokenOut, address(tokenB));
+        assertEq(intent.amountIn, 100 ether);
+        assertEq(intent.targetPrice, 1000);
+        assertTrue(intent.greaterThan);
+        assertTrue(intent.revealed);
+        assertFalse(intent.executed);
+    }
+
+    // --------------------------
+    // nextIntentId
+    // --------------------------
+
+    /// NEXT INTENT ID MUST INCREMENT PER SUBMISSION
+    function testNextIntentIdIncrementsOnMultipleSubmits() public {
+        uint256 expiry = block.timestamp + 1 days;
+
+        vm.startPrank(user);
+        registry.submitIntent(_hash(expiry), expiry);
+        registry.submitIntent(_hash(expiry), expiry);
+        registry.submitIntent(_hash(expiry), expiry);
+        vm.stopPrank();
+
+        assertEq(registry.nextIntentId(), 3);
+    }
+
+    /// EACH SUBMISSION MUST BELONG TO CORRECT SLOT
+    function testMultipleIntentsAreIndependent() public {
+        uint256 expiry = block.timestamp + 1 days;
+        address user2 = address(2);
+
+        vm.prank(user);
+        registry.submitIntent(_hash(expiry), expiry);
+
+        vm.prank(user2);
+        registry.submitIntent(bytes32("other"), expiry + 1 hours);
+
+        assertEq(registry.getIntent(0).user, user);
+        assertEq(registry.getIntent(1).user, user2);
+    }
+
+    // --------------------------
+    // Price Boundary Conditions
+    // --------------------------
+
+    /// PRICE EXACTLY AT TARGET WITH GREATER-THAN MUST EXECUTE (>=)
+    function testExecuteAtExactTargetPriceGreaterThan() public {
+        uint256 expiry = block.timestamp + 1 days;
+
+        vm.startPrank(user);
+        registry.submitIntent(_hash(expiry), expiry);
+        registry.revealIntent(0, address(tokenA), address(tokenB), 100 ether, 1000, true, secret);
+        tokenA.approve(address(registry), 100 ether);
+        registry.depositIntentFunds(0);
+        vm.stopPrank();
+
+        registry.executeIntent(0, 1000); // price == targetPrice, greaterThan=true → should pass
+
+        assertTrue(registry.getIntent(0).executed);
+    }
+
+    /// PRICE EXACTLY AT TARGET WITH LESS-THAN MUST EXECUTE (<=)
+    function testExecuteAtExactTargetPriceLessThan() public {
+        uint256 expiry = block.timestamp + 1 days;
+
+        bytes32 h = keccak256(
+            abi.encodePacked(
+                user, address(tokenA), address(tokenB), uint256(100 ether), uint256(1000), false, expiry, secret
+            )
+        );
+
+        vm.startPrank(user);
+        registry.submitIntent(h, expiry);
+        registry.revealIntent(0, address(tokenA), address(tokenB), 100 ether, 1000, false, secret);
+        tokenA.approve(address(registry), 100 ether);
+        registry.depositIntentFunds(0);
+        vm.stopPrank();
+
+        registry.executeIntent(0, 1000); // price == targetPrice, greaterThan=false → should pass
+
+        assertTrue(registry.getIntent(0).executed);
+    }
+
+    /// ONE ABOVE TARGET WITH LESS-THAN MUST REVERT
+    function testExecuteOneAboveTargetLessThanReverts() public {
+        uint256 expiry = block.timestamp + 1 days;
+
+        bytes32 h = keccak256(
+            abi.encodePacked(
+                user, address(tokenA), address(tokenB), uint256(100 ether), uint256(1000), false, expiry, secret
+            )
+        );
+
+        vm.startPrank(user);
+        registry.submitIntent(h, expiry);
+        registry.revealIntent(0, address(tokenA), address(tokenB), 100 ether, 1000, false, secret);
+        tokenA.approve(address(registry), 100 ether);
+        registry.depositIntentFunds(0);
+        vm.stopPrank();
+
+        vm.expectRevert(IntentRegistry.IntentRegistry__PriceConditionNotMet.selector);
+        registry.executeIntent(0, 1001);
+    }
+
+    // --------------------------
+    // Event Emissions
+    // --------------------------
+
+    /// SUBMIT MUST EMIT IntentSubmitted
+    function testSubmitEmitsEvent() public {
+        uint256 expiry = block.timestamp + 1 days;
+
+        vm.prank(user);
+        vm.expectEmit(true, true, false, false);
+        emit IntentRegistry.IntentSubmitted(0, user);
+        registry.submitIntent(_hash(expiry), expiry);
+    }
+
+    /// REVEAL MUST EMIT IntentRevealed
+    function testRevealEmitsEvent() public {
+        uint256 expiry = block.timestamp + 1 days;
+
+        vm.prank(user);
+        registry.submitIntent(_hash(expiry), expiry);
+
+        vm.prank(user);
+        vm.expectEmit(true, false, false, false);
+        emit IntentRegistry.IntentRevealed(0);
+        registry.revealIntent(0, address(tokenA), address(tokenB), 100 ether, 1000, true, secret);
+    }
+
+    /// DEPOSIT MUST EMIT FundsDeposited
+    function testDepositEmitsEvent() public {
+        uint256 expiry = block.timestamp + 1 days;
+
+        vm.startPrank(user);
+        registry.submitIntent(_hash(expiry), expiry);
+        registry.revealIntent(0, address(tokenA), address(tokenB), 100 ether, 1000, true, secret);
+        tokenA.approve(address(registry), 100 ether);
+
+        vm.expectEmit(true, false, false, true);
+        emit IntentRegistry.FundsDeposited(0, 100 ether);
+        registry.depositIntentFunds(0);
+        vm.stopPrank();
+    }
+
+    /// EXECUTE MUST EMIT IntentExecuted WITH CORRECT PRICE
+    function testExecuteEmitsEvent() public {
+        uint256 expiry = block.timestamp + 1 days;
+
+        vm.startPrank(user);
+        registry.submitIntent(_hash(expiry), expiry);
+        registry.revealIntent(0, address(tokenA), address(tokenB), 100 ether, 1000, true, secret);
+        tokenA.approve(address(registry), 100 ether);
+        registry.depositIntentFunds(0);
+        vm.stopPrank();
+
+        vm.expectEmit(true, false, false, true);
+        emit IntentRegistry.IntentExecuted(0, 1001);
+        registry.executeIntent(0, 1001);
+    }
+
+    // --------------------------
+    // Deposit Edge Cases
+    // --------------------------
+
+    /// DEPOSIT BEFORE REVEAL IS POSSIBLE (CONTRACT ALLOWS IT — TOKENIN IS address(0))
+    /// This documents current behaviour; the contract does NOT guard against it.
+    function testDepositBeforeRevealUsesZeroAddress() public {
+        uint256 expiry = block.timestamp + 1 days;
+
+        vm.prank(user);
+        registry.submitIntent(_hash(expiry), expiry);
+
+        // tokenIn is address(0) at this point; the transferFrom call will revert
+        // from the zero-address token, not from an IntentRegistry guard.
+        vm.prank(user);
+        vm.expectRevert(); // low-level revert from zero-address ERC20 call
+        registry.depositIntentFunds(0);
+    }
 }
