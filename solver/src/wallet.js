@@ -1,11 +1,14 @@
-import { question } from "readline-sync";
-
+import readline from "readline-sync";
 import { ethers } from "ethers";
 
-export const getWallet = (provider) => {
-  const pk = question("Private key: ", {
-    hideEchoBack: true,
-  });
+let wallet = null;
 
-  return new ethers.Wallet(pk, provider);
-};
+export function getWallet(provider) {
+  if (wallet) return wallet;
+
+  const pk = readline.question("Private key: ", { hideEchoBack: true });
+
+  wallet = new ethers.Wallet(pk, provider);
+
+  return wallet;
+}
