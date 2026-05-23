@@ -27,13 +27,13 @@ contract IntentRegistryHandler is Test {
     bytes32 public constant SECRET = keccak256("handler_secret");
 
     // ── shadow accounting ─────────────────────────────────────────────────
-    uint256 public ghost_totalDeposited; // Σ amountIn deposited
-    uint256 public ghost_totalExecuted; // Σ amountIn whose swap has gone through
-    uint256 public ghost_totalRefunded; // Σ amountIn returned via cancelIntent
+    uint256 public ghostTotalDeposited; // Σ amountIn deposited
+    uint256 public ghostTotalExecuted; // Σ amountIn whose swap has gone through
+    uint256 public ghostTotalRefunded; // Σ amountIn returned via cancelIntent
 
     // Per-intent deposit tracking (needed by invariant assertions).
-    mapping(uint256 => uint256) public ghost_depositedAmount;
-    mapping(uint256 => bool) public ghost_wasDeposited;
+    mapping(uint256 => uint256) public ghostDepositedAmount;
+    mapping(uint256 => bool) public ghostWasDeposited;
 
     // ── local state ───────────────────────────────────────────────────────
     uint256 private constant MAX_AMOUNT = type(uint128).max;
@@ -112,9 +112,9 @@ contract IntentRegistryHandler is Test {
         vm.stopPrank();
 
         // Shadow bookkeeping.
-        ghost_totalDeposited += amountIn;
-        ghost_depositedAmount[id] = amountIn;
-        ghost_wasDeposited[id] = true;
+        ghostTotalDeposited += amountIn;
+        ghostDepositedAmount[id] = amountIn;
+        ghostWasDeposited[id] = true;
     }
 
     // =========================================================================
@@ -141,7 +141,7 @@ contract IntentRegistryHandler is Test {
             : bound(priceSeed, 0, intent.targetPrice);
 
         try registry.executeIntentWithMockPrice(id, price) {
-            ghost_totalExecuted += ghost_depositedAmount[id];
+            ghostTotalExecuted += ghostDepositedAmount[id];
         } catch {
             // Racing with a cancel or time edge — harmless.
         }
@@ -169,8 +169,8 @@ contract IntentRegistryHandler is Test {
 
         vm.prank(intent.user);
         try registry.cancelIntent(id) {
-            if (ghost_wasDeposited[id]) {
-                ghost_totalRefunded += ghost_depositedAmount[id];
+            if (ghostWasDeposited[id]) {
+                ghostTotalRefunded += ghostDepositedAmount[id];
             }
         } catch {
             // Ignore: another action may have already cancelled it.

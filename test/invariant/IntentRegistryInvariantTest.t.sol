@@ -23,7 +23,7 @@ import {IntentRegistryHandler} from "./IntentRegistryHandler.sol";
 //   I5  Commitment integrity — revealed intents satisfy their original hash
 //   I6  nextIntentId is monotonically non-decreasing
 //   I7  Router allowance is always zero between transactions
-//   I8  Refund accounting — ghost_totalRefunded matches on-chain cancelled+deposited intents
+//   I8  Refund accounting — ghostTotalRefunded matches on-chain cancelled+deposited intents
 // ─────────────────────────────────────────────────────────────────────────────
 contract IntentRegistryInvariantTest is StdInvariant, Test {
     HarnessIntentRegistry public registry;
@@ -66,13 +66,12 @@ contract IntentRegistryInvariantTest is StdInvariant, Test {
     // It must either still sit in the registry, have been sent to the router
     // (executed), or returned to the user (cancelled / refunded).
     //
-    //   registry.balanceOf == ghost_totalDeposited
-    //                        - ghost_totalExecuted
-    //                        - ghost_totalRefunded
+    //   registry.balanceOf == ghostTotalDeposited
+    //                        - ghostTotalExecuted
+    //                        - ghostTotalRefunded
     // =========================================================================
     function invariant_tokenConservation() public view {
-        uint256 expected = handler.ghost_totalDeposited() - handler.ghost_totalExecuted()
-            - handler.ghost_totalRefunded();
+        uint256 expected = handler.ghostTotalDeposited() - handler.ghostTotalExecuted() - handler.ghostTotalRefunded();
 
         assertEq(tokenIn.balanceOf(address(registry)), expected, "I1: token conservation violated");
     }
@@ -177,7 +176,7 @@ contract IntentRegistryInvariantTest is StdInvariant, Test {
     // =========================================================================
     // I8 — Refund accounting matches on-chain state
     //
-    // ghost_totalRefunded must equal the sum of depositedAmount for every intent
+    // ghostTotalRefunded must equal the sum of depositedAmount for every intent
     // that is both cancelled == true and was deposited.
     // =========================================================================
     function invariant_refundAccountingIsCorrect() public view {
@@ -185,14 +184,14 @@ contract IntentRegistryInvariantTest is StdInvariant, Test {
         uint256 total = registry.nextIntentId();
         for (uint256 i = 0; i < total; i++) {
             IntentRegistry.TradeIntent memory intent = registry.getIntent(i);
-            if (intent.cancelled && handler.ghost_wasDeposited(i)) {
-                computedRefund += handler.ghost_depositedAmount(i);
+            if (intent.cancelled && handler.ghostWasDeposited(i)) {
+                computedRefund += handler.ghostDepositedAmount(i);
             }
         }
         assertEq(
-            handler.ghost_totalRefunded(),
+            handler.ghostTotalRefunded(),
             computedRefund,
-            "I8: ghost_totalRefunded does not match on-chain cancelled+deposited intents"
+            "I8: ghostTotalRefunded does not match on-chain cancelled+deposited intents"
         );
     }
 }

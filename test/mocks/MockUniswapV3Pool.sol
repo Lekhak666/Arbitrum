@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import {IUniswapV3Pool} from "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
-
 /// @dev Minimal mock of IUniswapV3Pool for OracleLibrary tests.
 ///      Only the functions called by OracleLibrary are implemented.
 contract MockUniswapV3Pool {
@@ -48,7 +46,14 @@ contract MockUniswapV3Pool {
         uint160 secondsPerLiquidityCumulativeX128,
         bool initialized
     ) external {
-        observations.push(Observation(blockTimestamp, tickCumulative, secondsPerLiquidityCumulativeX128, initialized));
+        observations.push(
+            Observation({
+                blockTimestamp: blockTimestamp,
+                tickCumulative: tickCumulative,
+                secondsPerLiquidityCumulativeX128: secondsPerLiquidityCumulativeX128,
+                initialized: initialized
+            })
+        );
     }
 
     /// @dev Override the full observations array from scratch.

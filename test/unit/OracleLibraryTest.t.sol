@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import {Test, console2} from "forge-std/Test.sol";
+import {Test} from "forge-std/Test.sol";
 import {OracleLibrary} from "../../src/libraries/OracleLibrary.sol";
 import {OracleLibraryWrapper} from "../unit/OracleLibraryWrapper.sol";
 import {MockUniswapV3Pool} from "../mocks/MockUniswapV3Pool.sol";

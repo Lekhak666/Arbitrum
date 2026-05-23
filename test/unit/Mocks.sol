@@ -18,9 +18,13 @@ contract MockERC20 is IERC20 {
     string public name;
     string public symbol;
     uint8 public decimals = 18;
+    uint256 public totalSupply;
 
     mapping(address => uint256) public balanceOf;
     mapping(address => mapping(address => uint256)) public allowance;
+
+    event Transfer(address indexed from, address indexed to, uint256 amount);
+    event Approval(address indexed owner, address indexed spender, uint256 amount);
 
     constructor(string memory _name, string memory _symbol) {
         name = _name;
@@ -28,7 +32,9 @@ contract MockERC20 is IERC20 {
     }
 
     function mint(address to, uint256 amount) external {
+        totalSupply += amount;
         balanceOf[to] += amount;
+        emit Transfer(address(0), to, amount);
     }
 
     function transfer(address to, uint256 amount) external returns (bool) {
@@ -37,6 +43,7 @@ contract MockERC20 is IERC20 {
         }
         balanceOf[msg.sender] -= amount;
         balanceOf[to] += amount;
+        emit Transfer(msg.sender, to, amount);
         return true;
     }
 
@@ -49,11 +56,13 @@ contract MockERC20 is IERC20 {
         balanceOf[from] -= amount;
         allowance[from][msg.sender] -= amount;
         balanceOf[to] += amount;
+        emit Transfer(from, to, amount);
         return true;
     }
 
     function approve(address spender, uint256 amount) external returns (bool) {
         allowance[msg.sender][spender] = amount;
+        emit Approval(msg.sender, spender, amount);
         return true;
     }
 }
@@ -65,6 +74,8 @@ contract MockERC20 is IERC20 {
 // tokenOut 1-for-1 to the recipient, keeping token accounting consistent.
 // ─────────────────────────────────────────────────────────────────────────────
 contract MockRouter is IRouter {
+    error MockERC20__TransferFailed();
+
     uint256 public lastAmountIn;
     uint256 public lastAmountOutMin;
     address public lastRecipient;
@@ -85,7 +96,10 @@ contract MockRouter is IRouter {
         lastPath1 = path[1];
 
         // Pull tokenIn from the caller (registry must have approved us).
-        MockERC20(path[0]).transferFrom(msg.sender, address(this), amountIn);
+        bool res = MockERC20(path[0]).transferFrom(msg.sender, address(this), amountIn);
+        if (!res) {
+            revert MockERC20__TransferFailed();
+        }
         // Mint tokenOut directly to the recipient (1-for-1 for simplicity).
         MockERC20(path[1]).mint(to, amountIn);
 

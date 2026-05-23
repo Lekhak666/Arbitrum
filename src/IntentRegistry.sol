@@ -66,6 +66,7 @@ contract IntentRegistry {
 
     ///@notice Mapping from token pair to Uniswap V3 pool address.
     // maps tokenIn → tokenOut → Uniswap V3 pool address.
+    // contract supports ANY pair
     mapping(address => mapping(address => address)) public tokenPairPool;
 
     ///@notice Mapping from intent ID to TradeIntent struct, storing all details of each intent. This is the main storage for intents in the contract.

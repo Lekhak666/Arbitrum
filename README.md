@@ -225,3 +225,15 @@ getIntent(intentId)
     │
     └─ return TradeIntent
 ```
+
+Flow from a bird's eye view:
+
+```
+Owner deploys a Uniswap V3 pool for TokenA/TokenB
+        ↓
+Owner call registerPool(TokenA, TokenB, poolAddress)
+        ↓
+User reveals intent with tokenIn=TokenA, tokenOut=TokenB
+        ↓
+executeIntent looks up tokenPairPool[TokenA][TokenB] → finds your pool → works
+```

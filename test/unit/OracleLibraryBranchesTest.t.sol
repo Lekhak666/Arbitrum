@@ -50,7 +50,7 @@ contract MockPool {
     }
 
     function setObs(uint256 i, uint32 ts, int56 tc, uint160 lc, bool init) external {
-        obs[i] = Obs(ts, tc, lc, init);
+        obs[i] = Obs({ts: ts, tickCum: tc, liqCum: lc, init: init});
     }
 
     function observations(uint256 i) external view returns (uint32, int56, uint160, bool) {
