@@ -1,0 +1,66 @@
+// prisma/schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Mirrors the on-chain TradeIntent struct.
+// Every field that starts as a placeholder (address(0), 0) is nullable until
+// the IntentRevealed event is indexed.
+// ─────────────────────────────────────────────────────────────────────────────
+model Intent {
+  // Primary key = on-chain intentId
+  intentId     BigInt   @id
+
+  // Set at IntentSubmitted
+  user         String   // checksummed address
+  commitmentHash String  // bytes32 hex
+  expiry       BigInt   // unix timestamp
+  blockNumber  BigInt
+  txHash       String
+
+  // Set at IntentRevealed (null until revealed)
+  tokenIn      String?
+  tokenOut     String?
+  amountIn     String?  // stored as string — BigInt > JS safe integer
+  targetPrice  String?
+  minAmountOut String?
+  greaterThan  Boolean?
+
+  // Lifecycle flags
+  revealed     Boolean  @default(false)
+  deposited    Boolean  @default(false)
+  executed     Boolean  @default(false)
+  cancelled    Boolean  @default(false)
+
+  // Execution details (set when executed)
+  executedTxHash  String?
+  executedBlock   BigInt?
+  twapPriceAtExec String?
+
+  // Cancellation details
+  cancelledTxHash String?
+  cancelledBlock  BigInt?
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([user])
+  @@index([revealed, executed, cancelled, expiry])  // keeper query index
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Tracks the last indexed block so the indexer can resume after a restart
+// without replaying the entire chain from the deploy block.
+// ─────────────────────────────────────────────────────────────────────────────
+model IndexerState {
+  id              Int    @id @default(1)  // singleton row
+  lastIndexedBlock BigInt
+  updatedAt       DateTime @updatedAt
+}
