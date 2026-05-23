@@ -350,10 +350,14 @@ Polls PostgreSQL every 15 seconds for `READY` intents (revealed + deposited + no
 │   └── DeployIntentRegistry.s.sol
 ├── test/
 │   ├── unit/
-│   │   ├── Mocks.sol              ← MockERC20, MockRouter, HarnessIntentRegistry
+│   │   ├── DeployIntentRegistryTest.t.sol
 │   │   ├── IntentRegistryBase.t.sol
 │   │   ├── IntentRegistryTest.t.sol
-│   │   └── OracleLibraryTest.t.sol
+│   │   ├── Mocks.sol              ← MockERC20, MockRouter, HarnessIntentRegistry
+│   │   ├── MockUniswapV3PoolTestTest.t.sol
+│   │   ├── OracleLibraryBranchesTest.t.sol
+│   │   ├── OracleLibraryTest.t.sol
+│   │   └── OracleLibraryWrapper.sol
 │   ├── fuzz/
 │   │   └── IntentRegistryFuzzTest.t.sol
 │   └── invariant/
@@ -364,9 +368,13 @@ Polls PostgreSQL every 15 seconds for `READY` intents (revealed + deposited + no
 │   │   ├── index.ts               ← entry point
 │   │   ├── indexer/indexer.ts
 │   │   ├── keeper/keeper.ts
-│   │   ├── api/routes.ts
+│   │   ├── api/
+│   │   │    ├── app.ts
+│   │   │    └── routes.ts
 │   │   ├── db/client.ts
-│   │   ├── utils/client.ts
+│   │   ├── utils/
+│   │   │    ├── client.ts
+│   │   │    └── logger.ts
 │   │   └── types/index.ts
 │   └── prisma/schema.prisma
 ├── frontend/                      ← [PLACEHOLDER]
