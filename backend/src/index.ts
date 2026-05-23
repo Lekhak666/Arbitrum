@@ -1,10 +1,10 @@
 // src/index.ts
 import "dotenv/config";
-import { createApp } from "./api/app.ts";
-import { startIndexer } from "./indexer/indexer.ts";
-import { startKeeper } from "./keeper/keeper.ts";
-import { prisma } from "./db/client.ts";
-import { logger } from "./utils/logger.ts";
+import { createApp } from "./api/app";
+import { startIndexer } from "./indexer/indexer";
+import { startKeeper } from "./keeper/keeper";
+import { prisma } from "./db/client";
+import { logger } from "./utils/logger";
 
 const PORT = Number(process.env.API_PORT ?? 3001);
 
