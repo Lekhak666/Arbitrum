@@ -18,9 +18,9 @@
     }
   },
   "lib/v3-periphery": {
-    "tag": {
-      "name": "v1.3.0",
-      "rev": "80f26c86c57b8a5e4b913f42844d4c8bd274d058"
+    "branch": {
+      "name": "0.8",
+      "rev": "b325bb0905d922ae61fcc7df85ee802e8df5e96c"
     }
   }
 }
