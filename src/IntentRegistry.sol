@@ -102,11 +102,7 @@ contract IntentRegistry {
 
     event IntentCancelled(uint256 indexed intentId); // Emitted when an intent is cancelled
 
-    event PoolRegistered(
-        address indexed tokenA,
-        address indexed tokenB,
-        address indexed pool
-    ); // Emitted when a Uniswap V3 pool is registered for a token pair
+    event PoolRegistered(address indexed tokenA, address indexed tokenB, address indexed pool); // Emitted when a Uniswap V3 pool is registered for a token pair
 
     // -------------------------------------------------------------------------
     // Constructor
@@ -128,11 +124,7 @@ contract IntentRegistry {
      * @param tokenB The other token in the pair.
      * @param pool   The Uniswap V3 pool address for tokenA/tokenB.
      */
-    function registerPool(
-        address tokenA,
-        address tokenB,
-        address pool
-    ) external {
+    function registerPool(address tokenA, address tokenB, address pool) external {
         if (msg.sender != CONTRACT_OWNER) {
             revert IntentRegistry__NotContractOwner();
         }
@@ -231,15 +223,7 @@ contract IntentRegistry {
         // forge-lint: disable-next-line(asm-keccak256)
         bytes32 computedHash = keccak256(
             abi.encodePacked(
-                msg.sender,
-                tokenIn,
-                tokenOut,
-                amountIn,
-                targetPrice,
-                minAmountOut,
-                greaterThan,
-                intent.expiry,
-                secret
+                msg.sender, tokenIn, tokenOut, amountIn, targetPrice, minAmountOut, greaterThan, intent.expiry, secret
             )
         );
 
@@ -276,11 +260,7 @@ contract IntentRegistry {
         if (intent.deposited) revert IntentRegistry__AlreadyDeposited();
         intent.deposited = true;
 
-        bool res = IERC20(intent.tokenIn).transferFrom(
-            msg.sender,
-            address(this),
-            intent.amountIn
-        );
+        bool res = IERC20(intent.tokenIn).transferFrom(msg.sender, address(this), intent.amountIn);
 
         if (!res) {
             revert IntentRegistry__TransferInDepositIntentFailed();
@@ -322,24 +302,15 @@ contract IntentRegistry {
         if (pool == address(0)) revert IntentRegistry__PoolNotRegistered();
 
         // consult() returns the time-weighted average tick over TWAP_INTERVAL seconds.
-        (int24 arithmeticMeanTick, ) = OracleLibrary.consult(
-            pool,
-            TWAP_INTERVAL
-        );
+        (int24 arithmeticMeanTick,) = OracleLibrary.consult(pool, TWAP_INTERVAL);
 
         // getQuoteAtTick converts the tick to "how many tokenOut for amountIn tokenIn".
         // Casting amountIn to uint128 is safe for token amounts up to ~3.4 × 10^38.
-        uint256 currentPrice = OracleLibrary.getQuoteAtTick(
-            arithmeticMeanTick,
-            uint128(intent.amountIn),
-            intent.tokenIn,
-            intent.tokenOut
-        );
+        uint256 currentPrice =
+            OracleLibrary.getQuoteAtTick(arithmeticMeanTick, uint128(intent.amountIn), intent.tokenIn, intent.tokenOut);
 
         // ----------------------------------------------------------------------
-        bool conditionMet = intent.greaterThan
-            ? currentPrice >= intent.targetPrice
-            : currentPrice <= intent.targetPrice;
+        bool conditionMet = intent.greaterThan ? currentPrice >= intent.targetPrice : currentPrice <= intent.targetPrice;
 
         if (!conditionMet) {
             revert IntentRegistry__PriceConditionNotMet();
@@ -414,10 +385,7 @@ contract IntentRegistry {
         intent.cancelled = true;
 
         if (intent.deposited) {
-            bool res = IERC20(intent.tokenIn).transfer(
-                msg.sender,
-                intent.amountIn
-            );
+            bool res = IERC20(intent.tokenIn).transfer(msg.sender, intent.amountIn);
             if (!res) {
                 revert IntentRegistry__CancelTransferFailed();
             }
@@ -436,9 +404,7 @@ contract IntentRegistry {
      * @custom:signature getIntent(uint256)
      * @custom:selector 0x906e277b
      */
-    function getIntent(
-        uint256 intentId
-    ) external view returns (TradeIntent memory) {
+    function getIntent(uint256 intentId) external view returns (TradeIntent memory) {
         return intents[intentId];
     }
 }
