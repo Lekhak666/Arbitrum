@@ -449,7 +449,7 @@ forge script script/DeployAll.s.sol:DeployAll \
 ```bash
 cd backend
 
-# Install dependencies
+# Install dependencies by writing this
 npm install
 
 # Configure environment
